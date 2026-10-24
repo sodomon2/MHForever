@@ -521,18 +521,20 @@ private:
     void push(const gpu::Vertex &v, const gpu::Vertex *color_from) {
         const gpu::Vertex &c = color_from != nullptr ? *color_from : v;
         GpuVertex g{};
-        // The interface is drawn in the PSP's 480x272 and is pulled in about the centre when the view is wider, so it
-        // keeps its proportions instead of being spread with the world. Draws that cover the whole width (fades,
-        // backdrops) belong with the world and stay as they are.
-        float x = v.x, y = v.y;
+        // The picture is spread horizontally over the window's shape, so the interface (drawn in the game's own 480x272
+        // and not through the projection) is pulled in about the centre by the same factor: it keeps its proportions.
+        // Draws that span the whole width (fades, backdrops) belong with the world and are left spread.
+        float px = v.x, py = v.y;
         const float view = live_->view_aspect.load(std::memory_order_relaxed);
-        if (through_ && view > 0.0f && !covers_screen_ && interface_inset_ < 0.999f) {
-            const float centre_x = 240.0f, centre_y = 136.0f;
-            x = centre_x + (x - centre_x) * interface_inset_;
-            y = centre_y + (y - centre_y) * interface_inset_;
+        if (through_ && view > 0.0f) {
+            const float inset = (480.0f / 272.0f) / view;
+            if (inset < 0.999f) {
+                px = 240.0f + (px - 240.0f) * inset;
+                py = 136.0f + (py - 136.0f) * inset;
+            }
         }
-        g.x = x;
-        g.y = y;
+        g.x = px;
+        g.y = py;
         g.z = v.z;
         g.inv_w = through_ ? 1.0f : (v.w > 0.0f ? v.w : 1.0f);
         g.u = through_ ? v.u / tex_width_ : v.u;
@@ -725,8 +727,7 @@ private:
     } stats_;
     bool have_state_{};
     bool through_{};
-    bool covers_screen_{};      // the draw spans the whole width: it belongs with the world
-    float interface_inset_{1.0f}; // <1 pulls the interface in about the centre
+
     float tex_width_{1}, tex_height_{1};
     std::vector<GpuVertex> batch_;
     std::vector<Origin> batch_origins_; // frame interpolation: one per vertex of batch_
@@ -1030,12 +1031,7 @@ void GlBackend::apply_state(const gpu::Ge &ge) {
     current_ = &rt;
     rt.last_draw = frame_;
     through_ = (ge.reg(kVertexType) & (1u << 23u)) != 0;
-    {
-        const float view = live_->view_aspect.load(std::memory_order_relaxed);
-        interface_inset_ = view > 0.0f ? (480.0f / 272.0f) / view : 1.0f;
-        covers_screen_ = false; // set per draw from its vertices
-        if (interface_inset_ > 1.0f) interface_inset_ = 1.0f;
-    }
+
     setup.through = through_;
     setup.target = rt.address;
 
@@ -1380,8 +1376,8 @@ void GlBackend::show(GLuint texture, float uv_max_x, float uv_max_y) {
         have_state_ = false;
     } else if (texture != 0 && window_w > 0 && window_h > 0) {
         blur_ready_ = false;
-        // With a wider view the picture takes the window's shape; the game already draws that much of the world. Without
-        // it, the PSP's 480:272, letterboxed.
+        // The game keeps drawing in its own 480x272 everywhere; the picture is spread over a target of the view's shape,
+        // which is what makes the wider world fill the window (docs/06-mhfu-module.md section 9).
         const float view = live_->view_aspect.load(std::memory_order_relaxed);
         const float shape = view > 0.0f ? view : 480.0f / 272.0f;
         int w = window_w, h = static_cast<int>(static_cast<float>(window_w) / shape);

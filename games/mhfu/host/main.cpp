@@ -3,7 +3,7 @@
 // usage: mhfu --iso <image.iso> --exe <decrypted executable> [--trace] [--memstick <dir>]
 //             [--window] [--auto-dialogs] [--dump-frames <dir> [--dump-every N] [--dump-from S]] [--seconds S] [--quiet-overlays]
 //             [--input "<seconds>:<button>,..."] [--name <text>] [--software] [--scale N] [--fullscreen]
-//             [--smooth-textures] [--fps 30..180] [--music-volume 0-100] [--sfx-volume 0-100]
+//             [--smooth-textures] [--fps 30..180] [--aspect 1.0..4.0] [--music-volume 0-100] [--sfx-volume 0-100]
 //             [--keymap "south=KeyK,east=KeyL,..."] [--padmap "south=south,left_shoulder=left_shoulder+left_trigger,..."]
 //             [--controls-file <path>]
 // The executable supplies the initial data sections. The launcher's installer prepares it from the player's own disc image
@@ -200,7 +200,6 @@ int main(int argc, char **argv) {
         else if (a == "--scale" && i + 1 < argc) render_scale = std::clamp(std::stoi(argv[++i]), 1, 10);
         else if (a == "--fullscreen") fullscreen = true;
         else if (a == "--smooth-textures") smooth_textures = true; // enhancement, off by default
-        else if (a == "--widescreen") g_view_aspect = 16.0f / 9.0f;  // the view's width to 1 high
         else if (a == "--aspect" && i + 1 < argc) {
             const float wanted = std::stof(argv[++i]);
             if (!(wanted >= 1.0f && wanted <= 4.0f)) {
