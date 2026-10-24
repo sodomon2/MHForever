@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import { api, type SaveImportResult, type SaveScan, type Settings, type State } from './bridge';
 import { CopyIcon } from './icons';
-import { frameRates, resolutions } from './format';
+import { aspectLabels, aspects, frameRates, resolutions } from './format';
 import { setNavigationPaused } from './gamepad';
 import { keyGroups, keyLabel, reservedKeys } from './keys';
 import { anySourcePressed, assignSource, padGroups, padLabel, pressedSource, stickChoices } from './pad';
@@ -377,6 +377,15 @@ export function SettingsPage({ state, onChange, onPseudonym, onCopyCode, onChang
             <span className="pill" style={{ transform: `translateX(${(s.scale - 1) * 100}%)` }} />
             {resolutions.map((_, i) => i + 1).map((n) => (
               <button key={n} className={s.scale === n ? 'on' : ''} role="radio" aria-checked={s.scale === n} onClick={() => onChange({ scale: n })}>{n}×</button>
+            ))}
+          </div>
+        </div>
+        <div className="srow">
+          <div className="slabel"><b>Aspect ratio</b><span>{s.aspect === 'original' ? 'The PSP\'s own shape.' : 'The world is drawn wider, not stretched; the interface keeps its proportions.'}</span></div>
+          <div className="seg wide" role="radiogroup" aria-label="Aspect ratio" style={{ '--n': aspects.length } as CSSProperties}>
+            <span className="pill" style={{ transform: `translateX(${Math.max(0, aspects.indexOf(s.aspect as never)) * 100}%)` }} />
+            {aspects.map((a) => (
+              <button key={a} className={s.aspect === a ? 'on' : ''} role="radio" aria-checked={s.aspect === a} onClick={() => onChange({ aspect: a })}>{aspectLabels[a]}</button>
             ))}
           </div>
         </div>

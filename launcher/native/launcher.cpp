@@ -69,6 +69,7 @@ Json default_settings() {
     s["scale"] = 4;
     s["fullscreen"] = false;
     s["smoothTextures"] = false;
+    s["aspect"] = "original"; // the view's shape: original, widescreen, ultra or superUltrawide
     s["fps"] = 30; // output rate: the game's own 30, or a multiple of it up to 180 (in-between pictures)
     s["copyImage"] = false; // keep a copy of the disc image in the data directory
     s["musicVolume"] = 100;
@@ -535,6 +536,12 @@ void Launcher::set_settings(const Json &partial) {
         if (partial[key].is_number()) s[key] = std::clamp(std::round(partial[key].as_number()), lo, hi);
     };
     num("scale", 1, 10); // whole multiples of the PSP's 480x272, as PPSSPP offers
+    if (partial["aspect"].is_string()) { // the view's shape (enhancement)
+        const std::string wanted = partial["aspect"].as_string();
+        if (wanted == "original" || wanted == "widescreen" || wanted == "ultra" || wanted == "superUltrawide") {
+            s["aspect"] = wanted;
+        }
+    }
     if (partial["fps"].is_number()) { // whole multiples of the game's 30 fps, 30..180
         s["fps"] = std::clamp(std::round(partial["fps"].as_number() / 30.0), 1.0, 6.0) * 30.0;
     }
@@ -752,6 +759,12 @@ Launcher::LaunchPlan Launcher::plan_launch(const std::string &game_id) {
                  data_["pseudonym"].as_string(), "--music-volume", num("musicVolume"), "--sfx-volume", num("sfxVolume")};
     if (s["fullscreen"].as_bool()) plan.args.push_back("--fullscreen");
     if (s["smoothTextures"].as_bool()) plan.args.push_back("--smooth-textures");
+    if (s["aspect"].as_string() != "original") {
+        // The game widens its own view; the runner only says which shape.
+        const std::string shape = s["aspect"].as_string();
+        plan.args.push_back("--aspect");
+        plan.args.push_back(shape == "widescreen" ? "1.7778" : shape == "ultra" ? "2.3333" : "3.5556");
+    }
     if (s["fps"].as_number() > 30) {
         plan.args.push_back("--fps");
         plan.args.push_back(num("fps"));

@@ -119,12 +119,34 @@ The EU version is probably multilingual (EN/FR/DE/ES/IT) and picks the language 
 |---|---|---|
 | Internal resolution ×N | Low | Renderer. Done: `--scale`, launcher setting |
 | Texture filtering / MSAA | Low | Renderer. Bilinear option done (`--smooth-textures`); MSAA not |
-| Widescreen 16:9 / 16:10 (Deck) | Medium | Projection + HUD; HUD may stretch |
+| Widescreen (aspect ratio) | Done | The game's own view is widened: `--aspect <w>:1`, the launcher's Aspect ratio setting and the in-game menu (Video tab). Original 4:3, 16:9, 21:9 and 32:9. See §9a |
 | Right-stick camera | Medium | Level 1 (stick → D-pad, `07`) done. Level 2: hook the camera function |
 | 60 fps | Done (0.2.0, experimental) | Renderer-side frame interpolation, 60 to 180 fps (`--fps`, launcher setting, `05` §6). Game logic stays at 30 fps, so timing and multiplayer sync are untouched; a real 60 fps logic would still need a timer study |
 | Button icons per controller | Medium | Replace button textures at runtime with our own art |
 | Own pause/system menu | Low | |
 | Cloud-synced saves | Low | Configurable folder |
+
+## 9a. Widescreen: how the wider view is made
+
+The game keeps its view in a camera object: near and far plane, aspect ratio and vertical field of view at `+0x00`,
+`+0x04`, `+0x08` and `+0x0C`, and the field of view the projection was last built with at `+0x10`.
+
+| What | Where |
+|---|---|
+| Builds the projection from those four fields; its first term is divided by the aspect | `0x088144B4` |
+| Feeds it from the camera and records the field of view it built with | `0x08815348` |
+| Rebuilds only when the recorded field of view differs from the current one | `0x08815384` |
+| Builds the frustum's culling planes (`far * 1.5`, then divided by the aspect) | `0x08815E9C` |
+
+Writing the wanted aspect into the camera and breaking the `+0x10` comparison makes the game build a wider view by itself:
+it draws more of the world and nothing on screen is stretched. The renderer keeps the game's 480×272 coordinates
+everywhere, so the interface keeps its proportions without any change of its own.
+
+The culling planes reach only `cot²(fov/2) / 1.5` times as wide as they are tall, about 3.07 here: past that the corners
+of a wider view fall outside them and their objects are not drawn. For those aspects the far plane is stretched while the
+planes are built, and the camera's own value is put back on every other use.
+
+Symbols: `mh_camera_setup`, `mh_cull_planes` and the camera's fields, in `regions/ULES01213/symbols.toml`.
 
 ## 10. Specific risks
 

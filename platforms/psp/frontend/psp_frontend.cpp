@@ -270,7 +270,7 @@ void update_dialogs(Frontend::Impl &impl, Runtime &rt) {
     impl.dialog_cv.notify_one();
 }
 
-enum MenuId { kResume = 1, kQuit, kQuitYes, kQuitNo, kMusic, kSfx, kScale, kFps, kFullscreen, kSmooth, kPadStick, kRestoreKeys, kRestorePad };
+enum MenuId { kResume = 1, kQuit, kQuitYes, kQuitNo, kMusic, kSfx, kScale, kFps, kAspect, kFullscreen, kSmooth, kPadStick, kRestoreKeys, kRestorePad };
 
 // The Controls tab: one Binding row per key action (ids from kKeyBase, in the order of host::kKeyActions) and per pad button
 // (from kPadBase, in the order of host::kPadActions).
@@ -283,6 +283,11 @@ constexpr std::string_view kStickChoices[] = {"left", "right", ""};
 
 constexpr int kMaxScale = 10;                 // 1x..10x the PSP's 480x272
 constexpr int kFpsChoices[] = {30, 60, 90, 120, 150, 180}; // whole multiples of the game's 30 fps
+// The game's view, width to 1 high: the PSP's own shape first, then the usual screens. The world is drawn wider and the
+// interface keeps its proportions.
+struct AspectChoice { const char *name; float value; };
+constexpr AspectChoice kAspectChoices[] = {{"Original 4:3", 0.0f}, {"Widescreen 16:9", 16.0f / 9.0f},
+                                           {"Ultra 21:9", 21.0f / 9.0f},   {"Super ultrawide 32:9", 32.0f / 9.0f}};
 
 overlay::MenuItem menu_item(overlay::MenuItem::Kind kind, int id, std::string label, int value = 0) {
     overlay::MenuItem item;
@@ -308,6 +313,14 @@ overlay::MenuView menu_main(const Frontend::Impl &impl) {
     overlay::MenuItem scale = menu_item(Kind::Choice, kScale, "Internal resolution", impl.render_scale - 1);
     for (int n = 1; n <= kMaxScale; ++n) scale.options.push_back(std::to_string(n) + "x");
     scale.detail = std::to_string(480 * impl.render_scale) + " x " + std::to_string(272 * impl.render_scale);
+    overlay::MenuItem aspect = menu_item(Kind::Choice, kAspect, "Aspect ratio");
+    int aspect_index = 0;
+    for (std::size_t i = 0; i < std::size(kAspectChoices); ++i) {
+        aspect.options.push_back(kAspectChoices[i].name);
+        if (std::abs(kAspectChoices[i].value - impl.view_aspect) < 0.01f) aspect_index = static_cast<int>(i);
+    }
+    aspect.value = aspect_index;
+    aspect.detail = "A wider view shows more of the world; the interface keeps its shape.";
     overlay::MenuItem fps = menu_item(Kind::Choice, kFps, "Frame rate");
     int fps_index = 0;
     for (std::size_t i = 0; i < std::size(kFpsChoices); ++i) {
@@ -316,7 +329,7 @@ overlay::MenuView menu_main(const Frontend::Impl &impl) {
     }
     fps.value = fps_index;
     fps.detail = "The game runs at 30; the rest are in-between pictures.";
-    overlay::MenuTab video{"Video", {menu_item(Kind::Heading, 0, "Picture"), scale, fps, menu_item(Kind::Heading, 0, "Display"),
+    overlay::MenuTab video{"Video", {menu_item(Kind::Heading, 0, "Picture"), scale, aspect, fps, menu_item(Kind::Heading, 0, "Display"),
                                       menu_item(Kind::Toggle, kFullscreen, "Fullscreen", impl.host.window_rect().fullscreen ? 1 : 0),
                                       menu_item(Kind::Toggle, kSmooth, "Smooth textures", impl.live.smooth_textures ? 1 : 0)}};
     overlay::MenuTab controls{"Controls", {menu_item(Kind::Heading, 0, "Keyboard")}};
@@ -488,6 +501,13 @@ bool menu_handle(Frontend::Impl &impl, Runtime &rt, const overlay::Menu::Event &
         case kSfx: impl.sfx_volume = e.value; rt.set_volumes(impl.music_volume, impl.sfx_volume); break;
         case kFullscreen: impl.host.toggle_fullscreen(); break;
         case kSmooth: impl.live.smooth_textures = e.value != 0; break;
+        case kAspect: {
+            const int index = std::clamp(e.value, 0, static_cast<int>(std::size(kAspectChoices)) - 1);
+            impl.view_aspect = kAspectChoices[index].value;
+            impl.live.view_aspect = impl.view_aspect; // the drawing thread applies it at the next picture
+            rt.set_view_aspect(impl.view_aspect); // the game writes the camera's aspect in its own hook
+            break;
+        }
         case kScale:
             impl.render_scale = e.value + 1;
             impl.live.scale = impl.render_scale; // the drawing thread applies it at the next picture

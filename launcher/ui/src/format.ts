@@ -25,5 +25,11 @@ export function lastPlayed(unix: number | null): string {
 }
 
 export const frameRates = [30, 60, 90, 120, 150, 180];
+// The shape of the game's view: the world is drawn wider instead of the picture being stretched, and the interface keeps
+// its proportions. 'original' is the PSP's own 480 × 272.
+export const aspects = ['original', 'widescreen', 'ultra', 'superUltrawide'] as const;
+export const aspectLabels: Record<string, string> = {
+  original: '4:3', widescreen: '16:9', ultra: '21:9', superUltrawide: '32:9',
+};
 // Internal resolutions: whole multiples of the PSP's 480 × 272 (1× to 10×), so 2D art and text stay sharp.
 export const resolutions = Array.from({ length: 10 }, (_, i) => `${480 * (i + 1)} × ${272 * (i + 1)}`);

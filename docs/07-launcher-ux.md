@@ -74,6 +74,7 @@ WebKitGTK on Linux/Deck) through the header-only `webview` library (MIT). Qt was
   was built) in `bin/`, the fonts next to them, and `packaging/linux/MHForever.desktop` plus the icon in the desktop's
   folders. The launcher embeds the icon and sets its application name, so the task bar and alt-tab show MHForever even
   when the archive is run without installing it.
+- Video also has **Aspect ratio** (original 4:3, widescreen 16:9, ultra 21:9, super ultrawide 32:9): the game widens its own view, so more of the world is drawn and the interface keeps its proportions. It is the same setting the game's in-game menu shows.
 - Still to do: launcher-managed updates (signed), language selection, Steam Deck packaging
   (AppImage/Flatpak), moving the per-user folder, moving saves there.
 

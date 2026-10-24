@@ -86,6 +86,9 @@ struct RuntimeOptions {
     // mixer (sceSasCore).
     int music_volume = 100;
     int sfx_volume = 100;
+    // Widescreen (enhancement): the width of the game's view to 1 high. 0 keeps the PSP's own shape; 16/9, 21/9 and 32/9
+    // widen it, so the game draws more of the world. The game's own hook reads it.
+    float view_aspect = 0.0f;
 };
 
 class Runtime {
@@ -147,6 +150,9 @@ public:
     // game) is not seen by the program as a long stall.
     void skip_time(std::uint64_t us);
     // The player's volume preferences (0..100), changeable while the program runs.
+    // The view's shape, changeable while the program runs (the in-game menu).
+    void set_view_aspect(float aspect) noexcept { options_.view_aspect = aspect; }
+    [[nodiscard]] float view_aspect() const noexcept { return options_.view_aspect; }
     void set_volumes(int music, int sfx) noexcept {
         options_.music_volume = music;
         options_.sfx_volume = sfx;

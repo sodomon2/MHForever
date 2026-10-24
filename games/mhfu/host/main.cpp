@@ -58,7 +58,7 @@ constexpr float kCullAspectLimit = 3.0f;
 
 bool g_log_overlays = true;
 // --aspect: the view's width to 1 high (1.0 keeps the PSP's 4:3). Wider draws more of the world instead of stretching it.
-float g_view_aspect = 0.0f;
+float g_view_aspect = 0.0f; // --aspect, before the runtime exists
 std::uint32_t cull_far_camera = 0u; // set while the culling planes are built
 float cull_far_original = 0.0f;
 
@@ -123,7 +123,8 @@ void on_overlay_prepare(Runtime &rt, Context &ctx) {
 // wanted aspect there, and breaking the comparison that decides whether to rebuild at all, makes the game build a wider
 // view: it draws more of the world, and nothing on screen is stretched.
 void on_camera_setup(Runtime &rt, Context &ctx) {
-    if (g_view_aspect <= 0.0f) return;
+    const float view = rt.view_aspect() > 0.0f ? rt.view_aspect() : g_view_aspect;
+    if (view <= 0.0f) return;
     const std::uint32_t camera = ctx.gpr[4];
     auto &mem = rt.memory();
     const auto store = [&mem](std::uint32_t address, float value) {
@@ -135,7 +136,7 @@ void on_camera_setup(Runtime &rt, Context &ctx) {
     if (camera == 0u || !mem.contains(camera, 0x14u)) return;
     const float fov = load(camera + kCameraFov);
     if (!(fov > 0.01f && fov < 3.1f)) return; // not a camera that looks like one
-    store(camera + kCameraAspect, g_view_aspect);
+    store(camera + kCameraAspect, view);
     store(camera + kCameraBuiltFov, -fov); // differs from the current one: the projection is built again
 }
 
@@ -149,12 +150,13 @@ void on_cull_planes(Runtime &rt, Context &ctx) {
         mem.store32(cull_far_camera + kCameraFar, std::bit_cast<std::uint32_t>(cull_far_original));
         cull_far_camera = 0u;
     }
-    if (g_view_aspect <= kCullAspectLimit) return;
+    const float view = rt.view_aspect() > 0.0f ? rt.view_aspect() : g_view_aspect;
+    if (view <= kCullAspectLimit) return;
     const std::uint32_t camera = ctx.gpr[4];
     if (camera == 0u || !mem.contains(camera, 0x14u)) return;
     const float far = std::bit_cast<float>(mem.load32(camera + kCameraFar));
     if (!(far > 0.0f && far < 1.0e7f)) return;
-    mem.store32(camera + kCameraFar, std::bit_cast<std::uint32_t>(far * (g_view_aspect / kCullAspectLimit)));
+    mem.store32(camera + kCameraFar, std::bit_cast<std::uint32_t>(far * (view / kCullAspectLimit)));
     cull_far_camera = camera;
     cull_far_original = far;
 }
@@ -258,6 +260,7 @@ int main(int argc, char **argv) {
     }
     // In a window the player answers the system dialogs (messages, keyboard, save/load) on screen.
     options.interactive_dialogs = window && !auto_dialogs;
+    options.view_aspect = g_view_aspect;
     try {
         Runtime runtime{options};
         runtime.load_elf(exe);

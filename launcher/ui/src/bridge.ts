@@ -21,6 +21,7 @@ export interface Settings {
   scale: number; // 1..4
   fullscreen: boolean;
   smoothTextures: boolean;
+  aspect: string;
   fps: number; // 30..180, a multiple of 30
   copyImage: boolean; // keep a copy of the disc image in MHForever's own folder
   musicVolume: number; // 0..100
@@ -119,7 +120,7 @@ function simulated(): Native {
     pseudonym: 'Hunter',
     friendCode: 'K7Q2-M9XA-4RTD-8PLE',
     settings: {
-      scale: 4, fullscreen: false, smoothTextures: false, fps: 30, copyImage: false, musicVolume: 80, sfxVolume: 90,
+      scale: 4, fullscreen: false, smoothTextures: false, aspect: 'original', fps: 30, copyImage: false, musicVolume: 80, sfxVolume: 90,
       keys: { ...defaultKeys }, pad: { ...defaultPad },
     },
     keyDefaults: defaultKeys,
