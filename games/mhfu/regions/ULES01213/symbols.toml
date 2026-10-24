@@ -17,6 +17,11 @@ mh_static_init_run      = 0x0890C2FC # (begin, end, ...): runs a static-initiali
 # build the view again with the wider shape, so it draws more of the world instead of the picture being stretched.
 mh_camera_setup         = 0x08815348 # (camera*): copies the fields into the projection builder and records the built fov
 
+# The culling planes (docs/06-mhfu-module.md section 9). They are built from the camera's aspect and a depth factor of
+# 1.5 times the far plane, which covers the view up to an aspect of about 3; a wider view leaves its corners outside and
+# their objects are not drawn. Passing the factor's value in makes them cover it.
+mh_cull_planes          = 0x08815E9C # (camera*): builds the frustum's planes from the camera
+
 [data]
 mh_overlay_region_bases = 0x089CBA70 # u32[6], region base address per group
 
@@ -28,3 +33,5 @@ camera_far              = 0x00000004 # f32: far plane
 camera_aspect           = 0x00000008 # f32: width to height of the view, 480/272 by default
 camera_fov              = 0x0000000C # f32: vertical field of view
 camera_built_fov        = 0x00000010 # f32: the field of view the projection was last built with
+
+cull_depth_slot         = 0x00000014 # f32, stack slot the culling's depth factor is read from (see the note in the docs)

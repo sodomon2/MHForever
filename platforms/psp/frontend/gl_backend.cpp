@@ -525,14 +525,6 @@ private:
         // and not through the projection) is pulled in about the centre by the same factor: it keeps its proportions.
         // Draws that span the whole width (fades, backdrops) belong with the world and are left spread.
         float px = v.x, py = v.y;
-        const float view = live_->view_aspect.load(std::memory_order_relaxed);
-        if (through_ && view > 0.0f) {
-            const float inset = (480.0f / 272.0f) / view;
-            if (inset < 0.999f) {
-                px = 240.0f + (px - 240.0f) * inset;
-                py = 136.0f + (py - 136.0f) * inset;
-            }
-        }
         g.x = px;
         g.y = py;
         g.z = v.z;
@@ -1376,14 +1368,10 @@ void GlBackend::show(GLuint texture, float uv_max_x, float uv_max_y) {
         have_state_ = false;
     } else if (texture != 0 && window_w > 0 && window_h > 0) {
         blur_ready_ = false;
-        // The game keeps drawing in its own 480x272 everywhere; the picture is spread over a target of the view's shape,
-        // which is what makes the wider world fill the window (docs/06-mhfu-module.md section 9).
-        const float view = live_->view_aspect.load(std::memory_order_relaxed);
-        const float shape = view > 0.0f ? view : 480.0f / 272.0f;
-        int w = window_w, h = static_cast<int>(static_cast<float>(window_w) / shape);
+        int w = window_w, h = window_w * 272 / 480;
         if (h > window_h) {
             h = window_h;
-            w = static_cast<int>(static_cast<float>(window_h) * shape);
+            w = window_h * 480 / 272;
         }
         gl_.Viewport((window_w - w) / 2, (window_h - h) / 2, w, h);
         gl_.Disable(GL_DEPTH_TEST);
