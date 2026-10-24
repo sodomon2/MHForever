@@ -39,6 +39,9 @@ struct LiveSettings {
     // multiplier (1..10) and the output rate in fps (a multiple of 30 up to 180).
     std::atomic<int> scale{0};
     std::atomic<int> fps{0};
+    // Widescreen: the shape of the game's view (its width to 1 high, e.g. 16/9). The game draws that much more of the
+    // world by itself; the picture takes the window's shape and the interface is pulled in about the centre.
+    std::atomic<float> view_aspect{0.0f};
 };
 
 // Creates the context on the calling thread. Returns nullptr (after logging why) when OpenGL 3.3 is unavailable.

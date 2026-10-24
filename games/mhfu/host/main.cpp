@@ -20,6 +20,7 @@
 #include "host/padmap.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cstdio>
 #include <filesystem>
 #include <functional>
@@ -43,7 +44,14 @@ namespace {
 using mhf::psp::Context;
 using mhf::psp::Runtime;
 
+// Camera fields (regions/ULES01213/symbols.toml, [offsets]).
+constexpr std::uint32_t kCameraFov = 0x0C;
+constexpr std::uint32_t kCameraAspect = 0x08;
+constexpr std::uint32_t kCameraBuiltFov = 0x10;
+
 bool g_log_overlays = true;
+// --aspect: the view's width to 1 high (1.0 keeps the PSP's 4:3). Wider draws more of the world instead of stretching it.
+float g_view_aspect = 0.0f;
 
 // Scripted input for unattended runs: "12.5:cross,15:start" presses each button for 150 ms at that time;
 // "20:sup/3" holds the analog stick up (sup, sdown, sleft, sright) or a button for 3 seconds.
@@ -100,6 +108,26 @@ void on_overlay_prepare(Runtime &rt, Context &ctx) {
     if (g_log_overlays || !ok) {
         std::fprintf(stderr, "[mhfu] overlay %d %s at %08X\n", overlay_id, ok ? "activated" : "UNKNOWN", image);
     }
+}
+
+// Hook on mh_camera_setup(camera*): the game is about to build the projection from the camera's fields. Writing the
+// wanted aspect there, and breaking the comparison that decides whether to rebuild at all, makes the game build a wider
+// view: it draws more of the world, and nothing on screen is stretched.
+void on_camera_setup(Runtime &rt, Context &ctx) {
+    if (g_view_aspect <= 0.0f) return;
+    const std::uint32_t camera = ctx.gpr[4];
+    auto &mem = rt.memory();
+    const auto store = [&mem](std::uint32_t address, float value) {
+        mem.store32(address, std::bit_cast<std::uint32_t>(value));
+    };
+    const auto load = [&mem](std::uint32_t address) {
+        return std::bit_cast<float>(mem.load32(address));
+    };
+    if (camera == 0u || !mem.contains(camera, 0x14u)) return;
+    const float fov = load(camera + kCameraFov);
+    if (!(fov > 0.01f && fov < 3.1f)) return; // not a camera that looks like one
+    store(camera + kCameraAspect, g_view_aspect);
+    store(camera + kCameraBuiltFov, -fov); // differs from the current one: the projection is built again
 }
 
 // "MHForever - <the disc's own title>": the window names the game that is running. The title comes from the disc image's
@@ -172,6 +200,15 @@ int main(int argc, char **argv) {
         else if (a == "--scale" && i + 1 < argc) render_scale = std::clamp(std::stoi(argv[++i]), 1, 10);
         else if (a == "--fullscreen") fullscreen = true;
         else if (a == "--smooth-textures") smooth_textures = true; // enhancement, off by default
+        else if (a == "--widescreen") g_view_aspect = 16.0f / 9.0f;  // the view's width to 1 high
+        else if (a == "--aspect" && i + 1 < argc) {
+            const float wanted = std::stof(argv[++i]);
+            if (!(wanted >= 1.0f && wanted <= 4.0f)) {
+                std::fprintf(stderr, "error: --aspect takes 1.0 (4:3) up to 4.0 (32:9)\n");
+                return 2;
+            }
+            g_view_aspect = wanted;
+        }
         else if (a == "--fps" && i + 1 < argc) target_fps = std::clamp(std::stoi(argv[++i]), 30, 180); // enhancement
         else if (a == "--music-volume" && i + 1 < argc) options.music_volume = std::clamp(std::stoi(argv[++i]), 0, 100);
         else if (a == "--sfx-volume" && i + 1 < argc) options.sfx_volume = std::clamp(std::stoi(argv[++i]), 0, 100);
@@ -201,6 +238,7 @@ int main(int argc, char **argv) {
             runtime.add_overlay(*programs[i]);
         }
         runtime.register_hook("mh_overlay_prepare", &on_overlay_prepare);
+        runtime.register_hook("mh_camera_setup", &on_camera_setup);
         std::function<void()> extra;
         if (!dump_folder.empty() || seconds > 0 || !script.empty()) {
             if (!dump_folder.empty()) std::filesystem::create_directories(dump_folder);
@@ -236,7 +274,7 @@ int main(int argc, char **argv) {
         }
 #if defined(MHF_HAS_FRONTEND)
         mhf::psp::Frontend frontend;
-        if (window && frontend.open(window_title(options.disc_image).c_str(), false, 2, !software, render_scale, fullscreen, smooth_textures, target_fps, keyboard, controller)) {
+        if (window && frontend.open(window_title(options.disc_image).c_str(), false, 2, !software, render_scale, fullscreen, smooth_textures, target_fps, g_view_aspect, keyboard, controller)) {
             frontend.set_controls_file(controls_file);
             frontend.attach(runtime, extra);
         } else if (window) {

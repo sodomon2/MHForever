@@ -60,6 +60,7 @@ struct Frontend::Impl {
     bool gpu{};
     int render_scale{4};
     bool smooth_textures{};
+    float view_aspect{};
     int target_fps{30};
     std::atomic<int> gpu_state{0};
     // System dialogs drawn over the game. Drawing one takes a few tens of milliseconds at 4x, so a worker thread
@@ -146,7 +147,7 @@ Frontend::~Frontend() {
 }
 
 bool Frontend::open(const char *title, bool hidden, int scale, bool gpu, int render_scale, bool fullscreen,
-                    bool smooth_textures, int target_fps) {
+                    bool smooth_textures, int target_fps, float view_aspect) {
     host::HostOptions o;
     o.title = title;
     o.hidden = hidden;
@@ -155,6 +156,8 @@ bool Frontend::open(const char *title, bool hidden, int scale, bool gpu, int ren
     impl_->gpu = gpu;
     impl_->render_scale = render_scale;
     impl_->smooth_textures = smooth_textures;
+    impl_->view_aspect = view_aspect;
+    impl_->live.view_aspect = view_aspect;
     impl_->target_fps = target_fps;
     impl_->title = title;
     impl_->open = impl_->host.open(o);
@@ -737,6 +740,7 @@ void Frontend::attach(Runtime &rt, std::function<void()> extra) {
     impl->music_volume = rt.options().music_volume;
     impl->sfx_volume = rt.options().sfx_volume;
     impl->live.smooth_textures = impl->smooth_textures;
+    impl->live.view_aspect = impl->view_aspect;
     if (impl->gpu && impl->open) {
         set_gpu_backend_factory(rt, [impl, runtime]() -> std::unique_ptr<gpu::Backend> {
             auto backend = make_gl_backend(static_cast<SDL_Window *>(impl->host.window_handle()), impl->render_scale,
