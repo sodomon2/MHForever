@@ -45,13 +45,22 @@ using mhf::psp::Context;
 using mhf::psp::Runtime;
 
 // Camera fields (regions/ULES01213/symbols.toml, [offsets]).
+constexpr std::uint32_t kCameraNear = 0x00;
+constexpr std::uint32_t kCameraFar = 0x04;
 constexpr std::uint32_t kCameraFov = 0x0C;
 constexpr std::uint32_t kCameraAspect = 0x08;
 constexpr std::uint32_t kCameraBuiltFov = 0x10;
 
+// The culling planes reach cot^2(fov/2) / 1.5 times as wide as they are tall before their corners fall outside, about
+// 3.07 with this game's field of view. Past that the far plane is stretched so they cover the wider view; the objects
+// are the same, only the planes are further away.
+constexpr float kCullAspectLimit = 3.0f;
+
 bool g_log_overlays = true;
 // --aspect: the view's width to 1 high (1.0 keeps the PSP's 4:3). Wider draws more of the world instead of stretching it.
 float g_view_aspect = 0.0f;
+std::uint32_t cull_far_camera = 0u; // set while the culling planes are built
+float cull_far_original = 0.0f;
 
 // Scripted input for unattended runs: "12.5:cross,15:start" presses each button for 150 ms at that time;
 // "20:sup/3" holds the analog stick up (sup, sdown, sleft, sright) or a button for 3 seconds.
@@ -128,6 +137,26 @@ void on_camera_setup(Runtime &rt, Context &ctx) {
     if (!(fov > 0.01f && fov < 3.1f)) return; // not a camera that looks like one
     store(camera + kCameraAspect, g_view_aspect);
     store(camera + kCameraBuiltFov, -fov); // differs from the current one: the projection is built again
+}
+
+// Hook on mh_cull_planes(camera*): the frustum's planes are built from the camera's far plane and its aspect, and their
+// corners reach only about 3.07 times as wide as the view is tall. A wider view leaves its own corners outside and the
+// objects there are not drawn, so the far plane is stretched for that one build: the same objects, in planes that reach
+// further. The camera's own far plane is put back on every other use of the camera.
+void on_cull_planes(Runtime &rt, Context &ctx) {
+    auto &mem = rt.memory();
+    if (cull_far_camera != 0u) {
+        mem.store32(cull_far_camera + kCameraFar, std::bit_cast<std::uint32_t>(cull_far_original));
+        cull_far_camera = 0u;
+    }
+    if (g_view_aspect <= kCullAspectLimit) return;
+    const std::uint32_t camera = ctx.gpr[4];
+    if (camera == 0u || !mem.contains(camera, 0x14u)) return;
+    const float far = std::bit_cast<float>(mem.load32(camera + kCameraFar));
+    if (!(far > 0.0f && far < 1.0e7f)) return;
+    mem.store32(camera + kCameraFar, std::bit_cast<std::uint32_t>(far * (g_view_aspect / kCullAspectLimit)));
+    cull_far_camera = camera;
+    cull_far_original = far;
 }
 
 // "MHForever - <the disc's own title>": the window names the game that is running. The title comes from the disc image's
@@ -238,6 +267,7 @@ int main(int argc, char **argv) {
         }
         runtime.register_hook("mh_overlay_prepare", &on_overlay_prepare);
         runtime.register_hook("mh_camera_setup", &on_camera_setup);
+        runtime.register_hook("mh_cull_planes", &on_cull_planes);
         std::function<void()> extra;
         if (!dump_folder.empty() || seconds > 0 || !script.empty()) {
             if (!dump_folder.empty()) std::filesystem::create_directories(dump_folder);
