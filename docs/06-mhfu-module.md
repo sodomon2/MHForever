@@ -126,7 +126,7 @@ The EU version is probably multilingual (EN/FR/DE/ES/IT) and picks the language 
 | Own pause/system menu | Low | |
 | Cloud-synced saves | Low | Configurable folder |
 
-## 9a. Widescreen: how the wider view is made
+## 9a. Aspect ratio: how the wider view is made
 
 The game keeps its view in a camera object: near and far plane, aspect ratio and vertical field of view at `+0x00`,
 `+0x04`, `+0x08` and `+0x0C`, and the field of view the projection was last built with at `+0x10`.
@@ -147,6 +147,18 @@ of a wider view fall outside them and their objects are not drawn. For those asp
 planes are built, and the camera's own value is put back on every other use.
 
 Symbols: `mh_camera_setup`, `mh_cull_planes` and the camera's fields, in `regions/ULES01213/symbols.toml`.
+
+**What has been seen and what has not.** The four shapes (4:3, 16:9, 21:9 and 32:9) were tried on a monitor that is not
+that wide, and in every one the world widened, the interface kept its proportions and the culling covered the view, with
+objects that the PSP's 4:3 never showed now drawn at the sides. What no one has done is play them on a display of each of
+those shapes: whether the framing looks right at 21:9 and 32:9, and whether anything odd turns up in the long ones, needs
+a monitor that really is that wide. Treat the wider shapes as working but not yet confirmed on their own hardware.
+
+One known difference from Yakumo's MHP3rd: that game copies the aspect ratio from a constant when it sets a camera up, so
+the port rewrites the constant for cameras made later. This game has no such constant (nothing holds 480/272 in the
+executable), and the hook writes the aspect whenever a camera reaches `mh_camera_setup`. Every camera tried so far goes
+through it — village, quests, menus, character select — but a camera made somewhere else would keep the PSP's shape until
+the next set-up.
 
 ## 10. Specific risks
 
