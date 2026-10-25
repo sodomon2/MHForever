@@ -119,7 +119,7 @@ The EU version is probably multilingual (EN/FR/DE/ES/IT) and picks the language 
 |---|---|---|
 | Internal resolution ×N | Low | Renderer. Done: `--scale`, launcher setting |
 | Texture filtering / MSAA | Low | Renderer. Bilinear option done (`--smooth-textures`); MSAA not |
-| Widescreen (aspect ratio) | Done | The game's own view is widened: `--aspect <w>:1`, the launcher's Aspect ratio setting and the in-game menu (Video tab). Original 4:3, 16:9, 21:9 and 32:9. See §9a |
+| Widescreen (aspect ratio) | Done | The game's own view is widened: `--aspect <w>:1` and the launcher's Aspect ratio setting, chosen before a game starts. Original 4:3, 16:9, 21:9 and 32:9. See §9a |
 | Right-stick camera | Medium | Level 1 (stick → D-pad, `07`) done. Level 2: hook the camera function |
 | 60 fps | Done (0.2.0, experimental) | Renderer-side frame interpolation, 60 to 180 fps (`--fps`, launcher setting, `05` §6). Game logic stays at 30 fps, so timing and multiplayer sync are untouched; a real 60 fps logic would still need a timer study |
 | Button icons per controller | Medium | Replace button textures at runtime with our own art |
@@ -147,6 +147,12 @@ of a wider view fall outside them and their objects are not drawn. For those asp
 planes are built, and the camera's own value is put back on every other use.
 
 Symbols: `mh_camera_setup`, `mh_cull_planes` and the camera's fields, in `regions/ULES01213/symbols.toml`.
+
+**The shape is chosen before a game starts, not while playing.** The game builds a camera when a scene is set up, and
+only rebuilds the projection when it decides to; nothing the port hooks runs often enough during a scene to write the
+shape into the live camera. There is no row for it in the in-game menu for that reason: the launcher's setting and
+`--aspect` apply at start-up, and a change means starting the game again. What was tried for the change made while
+playing is written down in `docs/notes/aspect-hot-change.md`, on the branch `research/aspect-hot-change-backup`.
 
 **What has been seen and what has not.** The four shapes (4:3, 16:9, 21:9 and 32:9) were tried on a monitor that is not
 that wide, and in every one the world widened, the interface kept its proportions and the culling covered the view, with

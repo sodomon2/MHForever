@@ -150,8 +150,7 @@ public:
     // game) is not seen by the program as a long stall.
     void skip_time(std::uint64_t us);
     // The player's volume preferences (0..100), changeable while the program runs.
-    // The view's shape, changeable while the program runs (the in-game menu).
-    void set_view_aspect(float aspect) noexcept { options_.view_aspect = aspect; }
+    // The view's shape, as the program was started with (the launcher's setting or --aspect).
     [[nodiscard]] float view_aspect() const noexcept { return options_.view_aspect; }
     void set_volumes(int music, int sfx) noexcept {
         options_.music_volume = music;
