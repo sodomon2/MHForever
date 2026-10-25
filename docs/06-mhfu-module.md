@@ -154,11 +154,12 @@ objects that the PSP's 4:3 never showed now drawn at the sides. What no one has 
 those shapes: whether the framing looks right at 21:9 and 32:9, and whether anything odd turns up in the long ones, needs
 a monitor that really is that wide. Treat the wider shapes as working but not yet confirmed on their own hardware.
 
-One known difference from Yakumo's MHP3rd: that game copies the aspect ratio from a constant when it sets a camera up, so
-the port rewrites the constant for cameras made later. This game has no such constant (nothing holds 480/272 in the
-executable), and the hook writes the aspect whenever a camera reaches `mh_camera_setup`. Every camera tried so far goes
-through it — village, quests, menus, character select — but a camera made somewhere else would keep the PSP's shape until
-the next set-up.
+**Where the way of doing it came from.** Yakumo's MHP3rd profile was read first, because it does the same thing for a
+different game of the same family: it writes the wanted aspect into the game's own camera and makes it build its
+projection again, instead of stretching the picture. This is the same idea, applied to this game's own function: the
+addresses, the structure of the camera and the culling were found here (the aspect constant Yakumo rewrites does not
+exist in this executable, so the aspect is written whenever a camera reaches `mh_camera_setup` and, for a change made
+while playing, on the per-frame step that builds the culling planes).
 
 ## 10. Specific risks
 
